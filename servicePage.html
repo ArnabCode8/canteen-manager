@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Service Page</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+</head>
+<body>
+
+    <div id = 'pageContainer'>page will be loaded here</div>
+
+    <script>
+
+        $(document).ready(function(){
+
+             fetchDishes();
+             loadPagePanel();
+           
+        });
+
+        function getMonthNameByNum(num)
+        {
+            var n = parseInt(num);
+            var str = "no month";
+
+            if(n == 1)
+            {
+               str = "January";
+            }
+            else if(n == 2)
+            {
+                str = "February";
+            }
+            else if(n == 3)
+            {
+                str = "March";
+            }
+            else if(n == 4)
+            {
+                str = "April";
+            }
+            else if(n == 5)
+            {
+                str = "May";
+            }
+            else if(n == 6)
+            {
+                str = "June";
+            }
+            else if(n == 7)
+            {
+                str = "July";
+            }
+            else if(n == 8)
+            {
+                str = "August";
+            }
+            else if(n == 9)
+            {
+                str = "September";
+            }
+            else if(n == 10)
+            {
+                str = "October";
+            }
+            else if(n == 11)
+            {
+                str = "November";
+            }
+            else if(n == 12)
+            {
+                str = "December";
+            }
+
+            return str;
+        }
+
+        function loadPagePanel()
+        {
+            var i;
+            var cont = "<select id = 'daySelect'>";
+            for(i=1;i<=31;i++)
+            {
+                cont += "<option value = '" + i + "'>" + i + "</option>";
+            }
+
+            cont += "</select>";
+            cont += "<select id = 'monthSelect'>";
+            for(i=1;i<=12;i++)
+            {
+                cont += "<option value = '" + i + "'>" + getMonthNameByNum(i) + "</option>";
+            }
+            cont += "</select>";
+
+            var d = new Date();
+            var yy = parseInt(d.getFullYear());
+            cont += "<select id = 'yearSelect'>";
+            for(i=2018;i<=yy;i++)
+            {
+                cont += "<option value = '" + i + "'>" + i + "</option>";
+            }
+            cont += "</select>";
+            cont += "<input type = 'text' id = 'idTxt' placeholder = 'Student ID'></input>";
+            cont += "<button id = 'showResult'>Show Result</button>";
+            cont += "<div id = 'recordResult'>record result will be printed here</div>";
+            
+            $('#pageContainer').html(cont);
+
+            $('#showResult').click(function(){
+
+                var dd = $('#daySelect').val();
+                var mm = $('#monthSelect').val();
+                var yy = $('#yearSelect').val();
+                var id = $('#idTxt').val();
+
+                if(id == null || id.trim() == "")
+                {
+                    window.alert("Student ID is empty");
+                    return;
+                }
+
+                var date = dd + "." + mm + "." + yy;
+                var idStr = JSON.stringify(id);
+                var dateStr = JSON.stringify(date);
+
+                fetch("/recordSD/" + idStr + "/" + dateStr,{
+
+                    method: "GET",
+
+                }).then(function(response){
+
+                    return response.text();
+
+                }).then(function(val){
+
+                    var resOut = JSON.parse(val);
+                    loadRecordResult(resOut);
+
+                });
+                
+
+            });
+
+        }
+
+        function getCourseNameById(courseid)
+        {
+            var c = parseInt(courseid);
+            var str = "No Course";
+            if(c == 1)
+            {
+                str = "Breakfast";
+            }
+            else if(c == 2)
+            {
+                str = "Lunch";
+            }
+            else if(c == 3)
+            {
+                str = "Evening";
+            }
+            else if(c == 4)
+            {
+                str = "Dinner";
+            }
+
+            return str;
+        }
+
+        //Tool module*********************************************************************************************
+
+           function loadRecordResult(rec)
+           {
+               //recordResult
+               
+               var len = rec.length;
+               var i;
+               var cont = "";
+               if(len == 0)
+               {
+                  cont += "<h2>No Record Found</h2>";
+               }
+               else
+               {
+                  for(i=0;i<len;i++)
+                  {
+                      cont += "<p>" + getCourseNameById(rec[i].courseid) + " : " + getDishNameStr(rec[i].dishstr) + "</p>";
+                  } 
+
+               }
+               
+               $('#recordResult').html(cont);
+
+           }
+
+            var allDishes = "";
+            function fetchDishes()
+            {
+                fetch("/dish",{
+
+                method: "GET",
+                
+                }).then(function(response){
+            
+                return response.text();
+                
+                }).then(function(val){
+                
+                var jsonObj = JSON.parse(val);
+                console.log(jsonObj);
+                allDishes = jsonObj;
+
+                });
+
+            }
+
+
+            function getDishName(dishid)
+            {
+            var len = allDishes.length;
+            var i;
+            var str = "";
+            for(i=0;i<len;i++)
+            {
+                if(allDishes[i].dishid == dishid)
+                {
+                    str = allDishes[i].dishname;
+                    break;
+                }
+            }
+
+            return str;
+            }
+
+            function getDishNameStr(dishstr)
+            {
+                var dishIdArr = dishstr.split(" "); //space is delemeter here
+                var len = dishIdArr.length;
+                var i;
+
+                var strOut = "";
+                for(i=0;i<len;i++)
+                {
+                strOut += getDishName(parseInt(dishIdArr[i])) + ",";
+                }
+
+                strOut = strOut.substring(0,strOut.length - 1);
+                return strOut;
+            }
+
+
+    </script>    
+    
+</body>
+</html>

@@ -1,0 +1,1188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login Page</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+
+    <style>
+
+        .mealSelected
+        {
+            background-color: lightgrey;
+        }
+
+        #timeStatus,#selectPageContainer,#studProfile,#navbarContainer,#menuContainer,#recordContainer,#holidayListContainer
+        {
+            display: none;
+        }
+
+    </style>    
+</head>
+<body>
+
+    <input type = 'text' id = 'loginIdTxt'></input>
+    <div id = 'studProfile'>Student descriptions</div>
+    <div id = 'navbarContainer'>navbar will be loaded here</div>
+
+    <h1 id = 'timeStatus'>Time Status shown here</h1>
+    <div id = 'selectPageContainer'>Function status will be printed here</div>
+     
+    <div id = 'menuContainer'>menu will be printed here</div>
+    <div id = 'recordContainer'>record will be printed here</div>
+    <div id = 'holidayListContainer'>holidays will be printed here</div>
+
+    <script>
+
+        $(document).ready(function(){
+
+           $('#loginIdTxt').keypress(function(e){
+
+              if(parseInt(e.which) == 13)
+              {
+                  var id = $(this).val();
+                  if(id == null || id.trim() == "")
+                  {
+                      window.alert("empty field");
+                      return;
+                  }
+                  else
+                  {
+                     window.alert("sending id : " + id);
+                     id = id.toLowerCase();
+                     var idStr = JSON.stringify(id.trim());
+                     fetch("/student/" + idStr,{
+
+                        method: "GET",
+
+                     }).then(function(response){
+                      
+                        return response.text();
+
+                     }).then(function(val){
+
+                        var resOut = JSON.parse(val);
+                        if(resOut.length == 0)
+                        {
+                            window.alert("No Student By this Id");
+                            return;
+                        }
+                        else
+                        {
+                            $('#loginIdTxt').fadeOut();
+                            studentInitiate(resOut[0]);
+                        }
+
+                     });
+
+                  }
+
+              }
+
+           });
+
+        });
+
+        //LOGIN MODULE ENDS*******************************************************************************************
+
+        function getCurrentDateFormatted()
+        {
+            var d = new Date();
+            var date = d.toLocaleDateString();
+            var arr = date.split("/");
+            var dateStr = parseInt(arr[1]) + "." + parseInt(arr[0]) + "." + parseInt(arr[2]);
+            return dateStr; 
+        }
+        
+        //TIME CHECK MODULE STARTS*************************************************************************************
+
+        var openNoRecFlag = false;
+        var openMenuFlag = false;
+        var openSelectedFlag = false;
+
+        function timeCheck()
+        {
+            var d = new Date();
+            var time = d.toLocaleTimeString().trim();
+            $('#timeStatus').html(time);
+            $('#timeStatus').show();
+            
+            var hr = time.split(':')[0].trim();
+            var min = time.split(':')[1].trim();
+            var mode = time.split(' ')[1].trim();
+
+            //original time conditions
+            // 1. if(mode == "AM" && parseInt(hr) < 7)
+            // 2. else if(mode == "AM" && 7 <= parseInt(hr) && parseInt(hr) < 9)
+            // 3. else  
+
+            var timeInt = 52;
+            var hrInt = 1;
+
+            if(mode == "PM" && parseInt(hr) == hrInt && parseInt(min) < timeInt)
+            {
+                //before time
+                if(openNoRecFlag == false)
+                {
+                    openNoRecFlag = true;
+                    openMenuFlag = false;
+                    openSelectedFlag = false;
+                    openNoRec();
+                }
+                else
+                {
+                    //do nothing;
+                    console.log("Not it");
+                }  
+
+            }
+            else if(mode == "PM" && parseInt(hr) == hrInt && timeInt <= parseInt(min) && parseInt(min) < timeInt + 2)
+            {
+                //ontime
+                if(openMenuFlag == false)
+                {
+                    openNoRecFlag = false;
+                    openMenuFlag = true;
+                    openSelectedFlag = false;
+                    openMenu();
+                }
+                else
+                {
+                    //do nothing
+                    console.log("Not it");
+                }
+            }
+            else
+            {
+                //after time
+                if(openSelectedFlag == false)
+                {
+                    openNoRecFlag = false;
+                    openMenuFlag = false;
+                    openSelectedFlag = true;
+                    openSelected();
+                }
+                else
+                {
+                    //do nothing
+                    console.log("Not it");
+                }
+
+            }
+
+        }
+
+        function openNoRec()
+        {
+           $('#selectPageContainer').html("NoRec Function");
+           $('#selectPageContainer').show();
+           console.log("<h2>No Record Panel is Called</h2>");
+           //timeStatus selectPageContainer
+        }
+
+        function openMenu()
+        {
+            var d = new Date();
+            var dayid = parseInt(d.getDay());
+            if(dayid == 0)
+            {
+                dayid = 7;
+            }
+
+            var dayStr = JSON.stringify(dayid);
+
+            fetch("/menu/" + dayStr,{
+
+
+            }).then(function(response){
+
+                return response.text();
+
+            }).then(function(val){
+
+                var todayMenuGot = JSON.parse(val); //this one is todays menu
+                //now fetch todays selected
+                var idStrSend = JSON.stringify(mainStudId);
+                var dateStrSend = JSON.stringify(getCurrentDateFormatted());
+                
+                fetch("/recordSD/" + idStrSend + "/" + dateStrSend,{
+
+                    method: "GET",
+
+                }).then(function(response){
+
+                    return response.text();
+
+                }).then(function(val1){
+
+                    var todaySelectedGot = JSON.parse(val1);
+                    
+                    loadSelectMenuPage(todayMenuGot,todaySelectedGot);
+
+                })
+
+            });
+
+            $('#selectPageContainer').html("Menu Function");
+            console.log("Menu Panel is Called");
+        }
+
+        function openSelected()
+        {
+
+            var id = JSON.stringify(mainStudId);
+            var date = JSON.stringify(getCurrentDateFormatted());
+
+            fetch("/recordSD/" + id + "/" + date,{
+
+                method: "GET",
+
+            }).then(function(response){
+
+                return response.text();
+
+            }).then(function(val){
+
+                var resOut = JSON.parse(val);
+                loadStudentTodaySelectedPanel(resOut);
+
+            });
+
+            console.log("Selected is Called");
+        }
+
+        function loadStudentTodaySelectedPanel(todaySelected)
+        {
+            var cont = "";
+            if(todaySelected.length == 0)
+            {
+               cont += "<h3>No Meals selected today</h3>";
+            }
+            else
+            {
+                var len = todaySelected.length;
+                var i;
+
+                for(i=0;i<len;i++)
+                {
+                    cont += "<p>" + getCourseName(todaySelected[i].courseid);
+                    cont += " : " + getDishNameStr(todaySelected[i].dishstr) + "</p>";    
+                } 
+
+            }
+
+            $('#selectPageContainer').html(cont);
+            $('#selectPageContainer').show();
+
+
+        }
+        //SELECT PAGE MODULE*************************************************************************************
+
+
+        function getCourseMeals(todayMenu,course)
+        {
+            var cr = parseInt(course);
+            var len = todayMenu.length;
+            var i;
+            var j = 0;
+            var mealArr = [];
+            
+            for(i=0;i<len;i++)
+            {
+                if(cr == parseInt(todayMenu[i].courseid))
+                {
+                    mealArr[j] = todayMenu[i];
+                    j++;
+                }
+            }
+
+            return mealArr;
+        }
+
+        function getCourseMenuPanel(todayMenu,todaySelected,course)
+        {
+            cr = parseInt(course);
+            var meals = getCourseMeals(todayMenu,course);
+            var len = meals.length;
+
+            if(len == 0)
+            {
+                var cont1 = "No menu Found for : " + getCourseName(course);
+                return cont1;
+            }
+
+            var i;
+            var idStr = "";
+            var cont = "<div class = 'unitSelectMenuBlock'>";
+            cont += "<div class = 'menuBlockHead' id = '" + course + "'>" + getCourseName(course) + "</div>";   
+            for(i=0;i<len;i++)
+            {
+                idStr = course + 'A' + meals[i].mealid;
+               if(isInSelected(meals[i],todaySelected) == true)
+               {
+                  cont += "<div class = 'unitMeal mealSelected' id = '" + idStr + "'>" + getDishNameStr(meals[i].dishstr)  + "</div>";
+               }
+               else
+               {
+                cont += "<div class = 'unitMeal' id = '" + idStr + "'>" + getDishNameStr(meals[i].dishstr)  + "</div>";
+               }
+            }     
+            cont += "</div>"; //unit select menu block closes
+
+            return cont;
+        }
+
+        function getDishStrByMealId(todayMenu,mealid)
+        {
+            var len = todayMenu.length;
+            var i;
+            var str = "No DishStr";
+
+            for(i=0;i<len;i++)
+            {
+                if(parseInt(todayMenu[i].mealid) == parseInt(mealid))
+                {
+                    str = todayMenu[i].dishstr;
+                    break;
+                }
+            }
+
+            return str;
+        }
+
+        function loadSelectMenuPage(todayMenu,todaySelected)
+        {
+            //selected are record rows
+            //menu are meal rows
+            //$('#selectPageContainer').html("Menu Function");
+
+            if(todayMenu.length == 0)
+            {
+                $('#selectPageContainer').html("<h2>No menu assigned yet</h2>");
+            }
+            else
+            {
+                var cont = "<div id = 'menuList'>";
+                cont += "<button id = 'saveSelectedMenu'>Save Changes</button>";    
+                cont += getCourseMenuPanel(todayMenu,todaySelected,1);
+                cont += getCourseMenuPanel(todayMenu,todaySelected,2);
+                cont += getCourseMenuPanel(todayMenu,todaySelected,3);
+                cont += getCourseMenuPanel(todayMenu,todaySelected,4);
+                cont += "</div>"; //menu list closes
+
+                $('#selectPageContainer').html(cont);
+                $('#selectPageContainer').show();
+
+                $('.unitMeal').dblclick(function(){
+
+                    if($(this).hasClass('mealSelected') == true)
+                    {
+                        $(this).removeClass('mealSelected');
+                    }
+                    else
+                    {
+                        $(this).siblings('.unitMeal').removeClass('mealSelected');
+                        $(this).addClass('mealSelected');
+
+                    }
+                });
+
+                $('#saveSelectedMenu').click(function(){
+
+                    var x = $('.mealSelected');
+                    var len = x.length;
+                    var i;
+                    var idStr = "";
+                    var idArr;
+                    //idStr = course + 'A' + meals[i].mealid;
+                    var recordArr = [];
+                    var recIndex = 0;
+                    var id = mainStudId;
+                    var date = getCurrentDateFormatted();
+
+                    for(i=0;i<len;i++)
+                    {
+                        idStr = x.eq(i).attr('id');
+                        idArr = idStr.split("A");
+                        var tempRecord = {'studid':id,'date':date,'courseid':parseInt(idArr[0]),'dishstr':getDishStrByMealId(todayMenu,idArr[1])};
+                        recordArr[recIndex] = tempRecord;
+                        recIndex++;
+                    }
+                    
+                    console.log(recordArr);
+
+                    fetch("/recordUlt/" + JSON.stringify(id) + "/" + JSON.stringify(date) + "/" + JSON.stringify(recordArr),{
+
+                        method: "POST",
+
+                    }).then(function(response){
+
+                        return response.text();
+
+                    }).then(function(val){
+
+                        var resOut = JSON.parse(val);
+                        if(resOut == "yes")
+                        {
+                            window.alert("Changes saved successfully");
+                        }
+                        else
+                        {
+                            window.alert("Saving changes failed");
+                        }
+
+                    });
+
+                });
+
+            }
+
+        }
+
+        function isInSelected(meal,todaySelected)
+        {
+            if(todaySelected.length == 0)
+            {
+                return false;
+            }
+            else
+            {
+                var len = todaySelected.length;
+                var i;
+                for(i=0;i<len;i++)
+                {
+                    if(meal.courseid == todaySelected[i].courseid && meal.dishstr.trim() == todaySelected[i].dishstr.trim())
+                    {
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+        }
+
+        //DISH STR TOOL MODULE************************************************************************************
+
+            var allMenus = "";
+            function fetchFullMenu(f)
+            {
+
+                //loadFullMenu will be passed through fetchFullMenu
+                fetch("/menu",{
+
+                method: "GET",
+
+                }).then(function(response){
+
+                return response.text();
+
+                }).then(function(val){
+
+                    var jsonObj = JSON.parse(val);
+                    allMenus = jsonObj;
+                    console.log(jsonObj);
+                    f(); // loadFullMenu will be called
+                });
+
+            }
+
+            function getDayName(dayid)
+            {
+                var str = "No Day";
+                if(dayid == 1)
+                {
+                   str = "Monday";
+                }
+                else if(dayid == 2)
+                {
+                    str = "Tuesday";
+                }
+                else if(dayid == 3)
+                {
+                    str = "Wednesday";
+                }
+                else if(dayid == 4)
+                {
+                    str = "Thursday";
+                }
+                else if(dayid == 5)
+                {
+                    str = "Friday";
+                }
+                else if(dayid == 6)
+                {
+                    str = "Saturday";
+                }
+                else if(dayid == 7)
+                {
+                    str = "Sunday";
+                }
+
+                return str;
+            }
+
+            function loadFullMenu()
+            {
+                var dayIndex;
+                var courseIndex;
+
+                var cont = "<table id = 'menuTable'>";
+                
+                //menu table heading    
+                cont += "<th>";
+                //cont += "<td>Day/Course</td>";
+                cont += "<td>Breakfast</td>";
+                cont += "<td>Lunch</td>";
+                cont += "<td>Evening</td>";
+                cont += "<td>Dinner</td>";
+                cont += "</th>";        
+
+                for(dayIndex = 1;dayIndex<=7;dayIndex++)
+                {
+                    cont += "<tr>";
+                    for(courseIndex = 0;courseIndex<=4;courseIndex++)
+                    {
+                        cont += "<td>";
+                        if(courseIndex == 0)
+                        {
+                           cont += getDayName(dayIndex);
+                        }
+                        else
+                        {
+                           cont+= getUnitMenuPanel(dayIndex,courseIndex);
+                        }
+                        cont += "</td>";    
+
+                    }
+                    cont += "</tr>";
+                }
+                cont += "</table>";
+                
+                $('#menuContainer').html(cont);
+                $('#menuContainer').show();
+            }
+
+
+            function getUnitMenuPanel(dayid,courseid)
+            {
+                var tempMenu = getMenuByDayCourse(dayid,courseid);
+                var len = tempMenu.length;
+                var cont = "";
+                if(len == 0)
+                {
+                    cont += "<p>Empty</p>";
+                }
+                else
+                {
+                    var i;
+                    cont += "<ol class = 'unitMenuList'>"; //unit menu list opens
+                    for(i=0;i<len;i++)
+                    {
+
+                        cont += "<li>" + getDishNameStr(tempMenu[i].dishstr) + "</li>";
+
+                    }
+                    cont += "</ol>"; //unit menu list closes
+                }
+
+            return cont;    
+
+            }
+
+            function getMenuByDayCourse(dayid,courseid)
+            {
+                //but there can be more than one meal in one slot
+                var len = allMenus.length;
+                var i;
+                var mealArr = [];
+                var j = 0;
+                for(i=0;i<len;i++)
+                {
+                if(allMenus[i].dayid == dayid && allMenus[i].courseid == courseid)
+                {
+                    mealArr[j] = allMenus[i];
+                    j++;
+                }
+                }
+
+            return mealArr;  
+            }
+
+            function getDishName(dishid)
+            {
+            var len = allDishes.length;
+            var i;
+            var str = "";
+            for(i=0;i<len;i++)
+            {
+                if(allDishes[i].dishid == dishid)
+                {
+                    str = allDishes[i].dishname;
+                    break;
+                }
+            }
+
+            return str;
+            }
+
+            function getDishNameStr(dishstr)
+            {
+                var dishIdArr = dishstr.split(" "); //space is delemeter here
+                var len = dishIdArr.length;
+                var i;
+
+                var strOut = "";
+                for(i=0;i<len;i++)
+                {
+                strOut += getDishName(parseInt(dishIdArr[i])) + ",";
+                }
+
+                strOut = strOut.substring(0,strOut.length - 1);
+                return strOut;
+            }
+
+
+        //DISH STR TOOL MODULE ENDS*******************************************************************************
+
+        //RECORD TOOL MODULE STARTS*******************************************************************************
+
+        function generateDateArr(month,year)
+        {
+            var dateArr = [];
+            var i;
+            for(i=1;i<=31;i++)
+            {
+                dateArr[i-1] = i + "." + month + "." + year;
+            }
+
+            return dateArr;
+        }
+
+        function getMonthSelectPanel()
+        {
+           var cont = "<select id = 'recordMonth'>";
+           cont += "<option value = '1'>January</option>";
+           cont += "<option value = '2'>February</option>";
+           cont += "<option value = '3'>March</option>";
+           cont += "<option value = '4'>April</option>";
+           cont += "<option value = '5'>May</option>";
+           cont += "<option value = '6'>June</option>";
+           cont += "<option value = '7'>July</option>";
+           cont += "<option value = '8'>August</option>";
+           cont += "<option value = '9'>September</option>";
+           cont += "<option value = '10'>October</option>";
+           cont += "<option value = '11'>November</option>";
+           cont += "<option value = '12'>December</option>";
+           cont += "</select>"; 
+
+           return cont;
+        }
+
+        function getYearSelectPanel()
+        {
+           var d = new Date();
+           var date = d.toLocaleDateString();
+           var dt = date.split("/");
+           var year = parseInt(dt[2].trim());
+           var i;
+           var cont = "<select id = 'recordYear'>";
+
+           for(i=2018;i<=year;i++)
+           {
+            cont += "<option value = '" + i + "'>" + i + "</option>";
+           } 
+           cont += "</select>";
+           return cont; 
+        }
+
+        function getCourseName(courseStr)
+        {
+            var course = parseInt(courseStr);
+
+            var str = "No Course";
+            if(course == 1)
+            {
+                str = "Breakfast";
+            }
+            else if(course == 2)
+            {
+                str = "Lunch";
+            }
+            else if(course == 3)
+            {
+                str = "Evening";
+            }
+            else if(course == 4)
+            {
+                str = "Dinner";
+            }
+
+            return str;
+        }
+
+        function loadRecord(month,year,records)
+        {
+        //    var d = new Date();
+        //    var date = d.toLocaleDateString();
+        //    var dt = date.split("/");
+        //    var month = parseInt(dt[0].trim());
+        //    var year = parseInt(dt[2].trim());
+
+            var cont = getMonthSelectPanel();
+            cont += getYearSelectPanel();
+            cont += "<button id = 'showStudRecord'>Show Record</button>";
+            cont += "<div id = 'recordList'>";
+            
+            var len = records.length;
+            var i;
+            
+            for(i=0;i<len;i++)
+            {
+ 
+                cont += "<div class = 'unitRec'>";
+                cont += "<p>" + records[i].date + " : " + getCourseName(records[i].courseid) + "</p>";
+                cont += "<p>" + getDishNameStr(records[i].dishstr) + "</p>";
+                cont += "</div>"; 
+
+            }
+
+            cont += "</div>"; //record list closes
+            //put in record container
+            $('#recordContainer').html(cont);
+            $('#recordContainer').show();
+            $('#recordMonth').val(month);
+            $('#recordYear').val(year);    
+
+            $('#showStudRecord').click(function(){
+
+                var month = $('#recordMonth').val();
+                var year = $('#recordYear').val();
+                var id = mainStudId;
+                
+                fetchRecord(month,year,id);
+
+            });
+
+        }
+
+        function fetchRecord(month,year,id)
+        {
+            var dateArr = generateDateArr(month,year);
+            var dateStr = JSON.stringify(dateArr);
+            var idStr = JSON.stringify(id);
+            fetch("/recordSM/" + idStr + "/" + dateStr,{
+
+                method: "GET",
+
+            }).then(function(response){
+
+                return response.text();
+
+            }).then(function(val){
+
+                var resOut = JSON.parse(val);
+                loadRecord(month,year,resOut);
+
+            });
+        }
+
+        //RECORD TOOL MODULE ENDS*********************************************************************************
+        
+        //TIME CHECK MODULE ENDS***********************************************************************************
+
+
+        function fetchHolidays() 
+        {
+           //$('#holidayListContainer')
+           fetch("/holiday",{
+
+            method: "GET",
+
+           }).then(function(response){
+
+            return response.text();
+
+           }).then(function(val){
+
+            var resOut = JSON.parse(val);
+            loadHolidayList(resOut);
+
+           });
+
+        }   
+
+        //GET Date Name
+        function getMonthNameByNum(num)
+        {
+            var str = "No Month";
+            if(num == 1)
+            {
+                str = "January";
+            }
+            else if(num == 2)
+            {
+                str = "February";
+            }
+            else if(num == 3)
+            {
+                str = "March";
+            }
+            else if(num == 4)
+            {
+                str = "April";
+            }
+            else if(num == 5)
+            {
+                str = "May";
+            }
+            else if(num == 6)
+            {
+                str = "June";
+            }
+            else if(num == 7)
+            {
+                str = "July";
+            }
+            else if(num == 8)
+            {
+                str = "August";
+            }
+            else if(num == 9)
+            {
+                str = "September";
+            }
+            else if(num == 10)
+            {
+                str = "October";
+            }
+            else if(num == 11)
+            {
+                str = "November";
+            }
+            else if(num == 12)
+            {
+                str = "December";
+            }
+            return str;
+        }
+
+        function loadHolidayList(holidays)
+        {
+            var cont = "<h3>Holidays</h3>";
+            var len = holidays.length;
+            var i;
+            var k;
+            var ddArr;
+            var tempStr = "";
+
+        for(k=1;k<=12;k++)
+        {
+            for(i=0;i<len;i++)
+            {
+                tempStr = holidays[i].date;
+                ddArr = tempStr.split(".");
+                if(parseInt(ddArr[1]) == k)
+                {
+                    cont += "<p>" + ddArr[0] + " th," + getMonthNameByNum(parseInt(ddArr[1])) + "</p>";
+                }
+                
+            }
+        }    
+
+            $('#holidayListContainer').html(cont);
+            $('#holidayListContainer').show();
+
+        }
+
+
+        var mainStudId = "";
+        function studentInitiate(stud)
+        {
+            mainStudId = stud['studid'];
+            loadProfile(stud);
+            isTodayHoliday();
+            //loadNavbar();
+            fetchDishes();
+            
+        }
+
+        function isTodayHoliday()
+        {
+            var date = JSON.stringify(getCurrentDateFormatted());
+            fetch("/holiday/" + date,{
+
+                method: "GET",
+
+            }).then(function(response){
+
+                return response.text();
+
+            }).then(function(val){
+
+                var resOut = JSON.parse(val);
+                console.log("Is today holiday? : " + resOut);
+                loadNavbar(resOut);
+
+            });
+
+
+        }
+
+            var allDishes = "";
+            function fetchDishes()
+            {
+                fetch("/dish",{
+
+                method: "GET",
+                
+                }).then(function(response){
+            
+                return response.text();
+                
+                }).then(function(val){
+                
+                var jsonObj = JSON.parse(val);
+                console.log(jsonObj);
+                allDishes = jsonObj;
+
+                });
+
+            }
+
+
+        function loadProfile(stud)
+        {
+            var cont = "<div class = 'ordPanel'>Student ID : " + stud['studid'] + "</div>";
+            cont +=  "<div class = 'ordPanel'>Student Name : " + stud['studname'] + "</div>";
+            $('#studProfile').html(cont);
+            $('#studProfile').show();
+        }
+
+        var tcVar;
+
+        //pass loadNavbar through fetch is today holiday
+        function loadNavbar(hol)
+        {
+           var cont = "<button id = 'selectToday'>Select Today</button>";
+           cont += "<button id = 'showMenu'>Show Menu</button>";
+           cont += "<button id = 'showRecord'>Show Record</button>";
+           cont += "<button id = 'showHolidays'>Show Holidays</button>";
+           cont += "<button id = 'logOut'>Logout</button>";
+          
+           $('#navbarContainer').html(cont);
+           $('#navbarContainer').show();
+
+           //studProfile navbarContainer
+
+           if(hol == "yes")
+           {
+               $('#selectToday').hide();
+           }
+           //NAVBAR ACTIONS******************************************************************************************
+
+           $('#selectToday').click(function(){
+
+            window.alert("Select today is clicked");
+
+            var f = $(this).hasClass('clicked');
+            if(f == true)
+            {
+               closeSelectNavToday();
+            }
+            else
+            {
+                //was unclicked
+                //put them in separate functions such as openSelecToday closeSelectToday
+                openSelectNavToday();
+            }
+
+           });
+
+
+           $('#showHolidays').click(function(){
+
+            window.alert("Show holidays is clicked");
+
+            var f = $(this).hasClass('clicked');
+            if(f == true)
+            {
+              closeNavShowHoliday();
+            }
+            else
+            {
+                //was unclicked
+                //put them in separate functions such as openSelecToday closeSelectToday
+                openNavShowHoliday();
+            }
+
+            });
+
+
+           $('#showMenu').click(function(){
+
+            window.alert("Show menu is clicked");
+
+            var f = $(this).hasClass('clicked');
+            if(f == true)
+            {
+               closeShowMenuNav();
+            }
+            else
+            {
+                openShowMenuNav();
+            }
+
+           });
+
+           $('#showRecord').click(function(){
+
+            window.alert("Show record is clicked");
+
+            var f = $(this).hasClass('clicked');
+            if(f == true)
+            {
+               closeShowRecordNav();
+            }
+            else
+            {
+                openShowRecordNav();
+            }
+
+           });
+
+           $('#logOut').click(function(){
+
+            window.alert("Logout is clicked");
+            var x = $('.clicked');
+            var len = x.length;
+            var i;
+            var idStr = "";
+
+            for(i=0;i<len;i++)
+            {
+                idStr = x.eq(i).attr('id');
+                
+                if(idStr == "selectToday")
+                {
+                    console.log("closing select today");
+                    closeSelectNavToday();
+                }
+                else if(idStr == "showMenu")
+                {
+                    console.log("closing menu");
+                    closeShowMenuNav();
+                }
+                else if(idStr == "showHolidays")
+                {
+                    console.log("closing show holidays");
+                    closeNavShowHoliday();
+                }
+                else if(idStr == "showRecord")
+                {
+                    console.log("closing show record");
+                    closeShowRecordNav();
+                }
+                else
+                {
+                    console.log("Nothing is open");
+                }
+
+            }
+
+            $('#loginIdTxt').show();
+            $('#loginIdTxt').val("");
+            //studProfile navbarContainer
+            $('#studProfile').fadeOut();
+            $('#navbarContainer').fadeOut();
+            
+            //selectToday showMenu showHolidays showRecord
+           });
+
+           //NAVBAR ACTION ENDS***************************************************************************************
+
+        }
+
+        //NAVBAR ACTIONS SUB-ACTION MODULE
+        function openSelectNavToday()
+        {
+            tcVar = setInterval(timeCheck,1000);
+                //$('#funcStatus').fadeIn();
+                $('#timeStatus').fadeIn();
+                $('#selectToday').addClass('clicked');
+
+        }
+        
+        function closeSelectNavToday()
+        {
+               $('#selectPageContainer').fadeOut();
+               $('#timeStatus').fadeOut();
+               $('#selectToday').removeClass('clicked');
+               clearInterval(tcVar);
+               openNoRecFlag = false;
+               openMenuFlag = false;
+               openSelectedFlag = false;
+        }
+
+        function openNavShowHoliday()
+        {
+            fetchHolidays(); //$('#holidayListContainer')
+           $('#showHolidays').addClass('clicked');
+        }
+
+        function closeNavShowHoliday()
+        {
+
+            $('#holidayListContainer').fadeOut();
+            $('#showHolidays').removeClass('clicked');
+        }
+
+        function openShowMenuNav()
+        {
+            $('#showMenu').addClass('clicked');
+            if(allMenus == "")
+            {
+                console.log("fetching menu");
+                fetchFullMenu(loadFullMenu);
+            }
+            else
+            {
+                console.log("No need to fetch");
+                loadFullMenu();
+
+            }
+            
+        }
+
+        function closeShowMenuNav()
+        {
+            $('#showMenu').removeClass('clicked');
+            $('#menuContainer').fadeOut();
+        }
+
+        function openShowRecordNav()
+        {
+           $('#showRecord').addClass('clicked');
+
+              var d = new Date();
+              var date = d.toLocaleDateString();
+              var dt = date.split("/");
+              var month = parseInt(dt[0].trim());
+              var year = parseInt(dt[2].trim());
+              var id = mainStudId;
+
+              fetchRecord(month,year,id);
+
+        }
+
+        function closeShowRecordNav()
+        {
+            $('#showRecord').removeClass('clicked');
+            $('#recordContainer').fadeOut();
+        }
+
+    </script>    
+    
+</body>
+</html>

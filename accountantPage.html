@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Accountant Page</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+</head>
+<body>
+
+    <div id = 'pageContainer'>handle page will be printed here</div>
+
+    <script>
+
+      $(document).ready(function(){
+
+        loadPagePanel();
+
+      });  
+
+      function loadPagePanel()
+      {
+          var cont = "<select id = 'monthSelect'>";
+          cont += "<option value = '1'>January</option>";
+          cont += "<option value = '2'>February</option>";
+          cont += "<option value = '3'>March</option>";
+          cont += "<option value = '4'>April</option>";
+          cont += "<option value = '5'>May</option>";
+          cont += "<option value = '6'>June</option>";
+          cont += "<option value = '7'>July</option>";
+          cont += "<option value = '8'>August</option>";
+          cont += "<option value = '9'>September</option>";
+          cont += "<option value = '10'>October</option>";
+          cont += "<option value = '11'>November</option>";
+          cont += "<option value = '12'>December</option>";
+          cont += "</select>";
+
+          var d = new Date();
+          var yy = parseInt(d.getFullYear());
+          var i;
+          
+          cont += "<select id = 'yearSelect'>";
+
+          for(i=2018;i<=yy;i++)
+          {
+             cont += "<option value = '" + i + "'>" + i + "</option>";
+          }
+          
+          cont += "</select>";
+          cont += "<input type = 'text' id = 'idTxt' placeholder = 'Student ID'>";
+          cont += "<button id = 'showResult'>Show Record</button>";
+          cont += "<div id = 'resultPanel'>result will be printed here</div>";
+          
+          
+          $('#pageContainer').html(cont);
+
+          $('#showResult').click(function(){
+
+            var mm = $('#monthSelect').val();
+            var yy = $('#yearSelect').val();
+            var id = $('#idTxt').val();
+
+            if(id == null || id.trim() == "")
+            {
+                window.alert("empty student ID");
+                return;
+            }
+
+            console.log("month : " + mm + " year : " + yy + " student : " + id);
+            var idStr = JSON.stringify(id);
+            var dateArrStr = JSON.stringify(generateDateArr(mm,yy));
+
+            fetch("/recordSCC/" + idStr + "/" + dateArrStr,{
+
+                method: "GET",
+
+            }).then(function(response){
+
+                return response.text();
+
+            }).then(function(val){
+
+                var resOut = JSON.parse(val);
+                loadResultPanel(resOut);
+
+            });
+
+          });
+
+      }
+
+      //TOOLS MOULE*******************************************************************
+
+        function loadResultPanel(res)
+        {
+            //resultPanel
+            var len = res.length;
+            var cont = "";
+            if(len == 0)
+            {
+                cont += "<h2>No Record Found</h2>";
+            }
+            else
+            {
+                var i;
+                for(i=0;i<len;i++)
+                {
+                    cont += "<p>" + getCourseNameById(res[i]['courseid']) + " : " + res[i]['COUNT(courseid)'] + "</p>";
+                }
+            } 
+
+            $('#resultPanel').html(cont);
+        }
+
+        function generateDateArr(month,year)
+        {
+            var dateArr = [];
+            var i;
+            for(i=1;i<=31;i++)
+            {
+                dateArr[i-1] = i + "." + month + "." + year;
+            }
+
+            return dateArr;
+        }
+
+        function getCourseNameById(courseid)
+        {
+            var c = parseInt(courseid);
+            var str = "No Course";
+            if(c == 1)
+            {
+                str = "Breakfast";
+            }
+            else if(c == 2)
+            {
+                str = "Lunch";
+            }
+            else if(c == 3)
+            {
+                str = "Evening";
+            }
+            else if(c == 4)
+            {
+                str = "Dinner";
+            }
+
+            return str;
+        }
+
+
+
+
+    </script>    
+    
+</body>
+</html>
